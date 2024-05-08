@@ -7,6 +7,7 @@ struct Bucket {
     key: String,
     hashed_key: u64,
     value: i32,
+    deleted: bool,
 }
 
 // Implementation of OpenAddressing
@@ -40,6 +41,7 @@ impl HashTable {
                         key: key.clone(),
                         hashed_key: hashed_key,
                         value: value,
+                        deleted: false,
                     });
                     return;
                 }
@@ -57,7 +59,7 @@ impl HashTable {
                     return Some(i);
                 },
                 // update value when same key is specified
-                Some(bucket) if bucket.hashed_key == hashed_key => {
+                Some(bucket) if bucket.hashed_key == hashed_key || bucket.deleted => {
                     return Some(i)
                 },
                 // insert value to the first empty bucket when hash value collides
@@ -78,7 +80,7 @@ impl HashTable {
                     return None;
                 },
                 // return Some when reach non empty bucket and hashed key is identical
-                Some(bucket) if bucket.hashed_key == hashed_key => {
+                Some(bucket) if bucket.hashed_key == hashed_key && !bucket.deleted => {
                     return Some(bucket.value);
                 },
                 // continue when reach non empty bucket but hashed key is not identical
@@ -136,6 +138,7 @@ impl HashTable {
                                 key: cloned.key,
                                 hashed_key: cloned.hashed_key,
                                 value: cloned.value,
+                                deleted: false,
                             })
                         }
                     }
@@ -143,6 +146,24 @@ impl HashTable {
             }
         }
         Some(new_buckets)
+    }
+
+    pub fn delete(&mut self, key: &str) {
+        let hashed_key = self.compute_hash(key);
+        let idx = self.compute_bucket_index(hashed_key, self.len());
+        
+        for i in idx..cmp::min(idx + Self::MAX_PROBE, self.len()) {
+            match &mut self.buckets[i] {
+                // do nothing when reach empty bucket
+                None => { return; },
+                // delete value when reach non empty bucket and hashed key is identical
+                Some(bucket) if bucket.hashed_key == hashed_key => {
+                    bucket.deleted = true;
+                },
+                // continue when reach non empty bucket but hashed key is not identical
+                Some(_) => {}
+            }
+        }
     }
 }
 
@@ -166,13 +187,30 @@ mod tests {
             let key = format!("key{}", expected_value);
             let actual = hash_table.get(key.as_str());
             assert!(actual.is_some());
-            assert_eq!(expected_value, actual.unwrap())
+            assert_eq!(expected_value, actual.unwrap());
         }
 
         // Verify: get (not found)
         {
             let actual = hash_table.get("key100");
             assert!(actual.is_none());
+        }
+
+        // Exercise: delete and get (not found)
+        for i in 1..50 {
+            let key = format!("key{}", i);
+            hash_table.delete(key.as_str());
+            let actual = hash_table.get(key.as_str());
+            assert!(actual.is_none());
+        }
+
+        // Exercise: insert and get (found)
+        for expected_value in 1..50 {
+            let key = format!("key{}", expected_value);
+            hash_table.insert(key.clone(), expected_value);
+            let actual = hash_table.get(key.as_str());
+            assert!(actual.is_some());
+            assert_eq!(expected_value, actual.unwrap());
         }
     }
 }
