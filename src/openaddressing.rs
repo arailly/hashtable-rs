@@ -26,7 +26,7 @@ impl HashTable {
         Self { buckets }
     }
 
-    pub fn insert(&mut self, key: String, value: i32) {
+    pub fn upsert(&mut self, key: String, value: i32) {
         let hashed_key = self.compute_hash(&key);
         loop {
             match self.compute_insertable_index(hashed_key, &self.buckets) {
@@ -177,14 +177,32 @@ mod tests {
         let mut hash_table = HashTable::new();
         
         // Exercise: insert
-        for value in 1..100 {
-            let key = format!("key{}", value);
-            hash_table.insert(key, value)
+        for i in 1..100 {
+            let key = format!("key{}", i);
+            let value = i;
+            hash_table.upsert(key, value)
         }
 
         // Verify: get (found)
-        for expected_value in 1..100 {
-            let key = format!("key{}", expected_value);
+        for i in 1..100 {
+            let key = format!("key{}", i);
+            let expected_value = i;
+            let actual = hash_table.get(key.as_str());
+            assert!(actual.is_some());
+            assert_eq!(expected_value, actual.unwrap());
+        }
+
+        // Exercise: update
+        for i in 1..100 {
+            let key = format!("key{}", i);
+            let value = i * 2;
+            hash_table.upsert(key, value)
+        }
+
+        // Verify: update
+        for i in 1..100 {
+            let key = format!("key{}", i);
+            let expected_value = i * 2;
             let actual = hash_table.get(key.as_str());
             assert!(actual.is_some());
             assert_eq!(expected_value, actual.unwrap());
@@ -207,7 +225,7 @@ mod tests {
         // Exercise: insert and get (found)
         for expected_value in 1..50 {
             let key = format!("key{}", expected_value);
-            hash_table.insert(key.clone(), expected_value);
+            hash_table.upsert(key.clone(), expected_value);
             let actual = hash_table.get(key.as_str());
             assert!(actual.is_some());
             assert_eq!(expected_value, actual.unwrap());

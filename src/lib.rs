@@ -1,1 +1,2 @@
-mod hashtable;
+mod openaddressing;
+mod closedaddressing;
